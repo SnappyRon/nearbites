@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "NearBites",
+    "slug": "nearbites",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./docs/assets/mascot.jpg",
+    "scheme": "nearbites",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#F5EBD7"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ph.nearbites.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F5EBD7"
+      },
+      "package": "ph.nearbites.app"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
