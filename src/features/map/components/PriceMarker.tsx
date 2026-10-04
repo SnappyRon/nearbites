@@ -43,6 +43,18 @@ export const PriceMarker: React.FC<PriceMarkerProps> = ({
 
   const glyph = getCategoryGlyph(marker.category);
 
+  // Dynamic tracksViewChanges to optimize 60fps pan/zoom while ensuring
+  // custom marker re-renders reliably upon selection or zoom state transitions
+  const [tracksViewChanges, setTracksViewChanges] = React.useState(true);
+
+  React.useEffect(() => {
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => {
+      setTracksViewChanges(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [isSelected, isHighZoom, isLowZoom, marker.price]);
+
   return (
     <Marker
       coordinate={{
@@ -50,7 +62,7 @@ export const PriceMarker: React.FC<PriceMarkerProps> = ({
         longitude: marker.longitude,
       }}
       onPress={() => onSelect(marker)}
-      tracksViewChanges={false}
+      tracksViewChanges={tracksViewChanges}
       zIndex={isSelected ? 999 : 1}
     >
       <Pressable

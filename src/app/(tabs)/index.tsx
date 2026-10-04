@@ -11,10 +11,12 @@ import { Card } from '@/components/primitives/Card';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { useDiscoveryStore } from '@/store/useDiscoveryStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useLocation, MANILA_PILOT_CENTER } from '@/features/map/hooks/useLocation';
 import { useViewportMeals } from '@/features/map/api/useViewportMeals';
 import { PriceMarker } from '@/features/map/components/PriceMarker';
 import { BudgetFilterBar } from '@/features/map/components/BudgetFilterBar';
+import { MealPeekSheet } from '@/features/map/components/MealPeekSheet';
 import { ViewportBounds, MealMarkerPayload } from '@/features/map/types';
 
 // Custom Map Style tuned to NearBites Cream & Teal palette
@@ -52,13 +54,30 @@ export default function MapScreen() {
 
   const { activeBudget, setActiveBudget, selectedMarkerId, setSelectedMarkerId } =
     useDiscoveryStore();
+  const { session, setPendingAction } = useAuthStore();
 
   const { location, isFallback, isLoading: isLocationLoading, getInitialRegion, requestLocation } =
     useLocation();
 
-  const [currentRegion, setCurrentRegion] = useState<Region>(getInitialRegion());
-  const [debouncedBounds, setDebouncedBounds] = useState<ViewportBounds | null>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initialRegion = getInitialRegion();
+  const [currentRegion, setCurrentRegion] = useState<Region>(initialRegion);
+  const [debouncedBounds, setDebouncedBounds] = useState<ViewportBounds | null>(() => ({
+    minLat: Math.max(-90, initialRegion.latitude - initialRegion.latitudeDelta / 2),
+    maxLat: Math.min(90, initialRegion.latitude + initialRegion.latitudeDelta / 2),
+    minLng: initialRegion.longitude - initialRegion.longitudeDelta / 2,
+    maxLng: initialRegion.longitude + initialRegion.longitudeDelta / 2,
+  }));
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [savedMealIds, setSavedMealIds] = useState<Set<string>>(new Set());
+
+  // Cleanup debounce timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Sync initial camera when GPS lock or fallback completes
   useEffect(() => {
@@ -86,8 +105,8 @@ export default function MapScreen() {
 
       debounceTimerRef.current = setTimeout(() => {
         const bounds: ViewportBounds = {
-          minLat: region.latitude - region.latitudeDelta / 2,
-          maxLat: region.latitude + region.latitudeDelta / 2,
+          minLat: Math.max(-90, region.latitude - region.latitudeDelta / 2),
+          maxLat: Math.min(90, region.latitude + region.latitudeDelta / 2),
           minLng: region.longitude - region.longitudeDelta / 2,
           maxLng: region.longitude + region.longitudeDelta / 2,
         };
@@ -101,6 +120,31 @@ export default function MapScreen() {
   const { data: markers = [], isLoading: isMealsLoading } = useViewportMeals(
     debouncedBounds,
     activeBudget
+  );
+
+  // Find active selected meal for Peek Bottom Sheet
+  const selectedMeal = markers.find((m) => m.id === selectedMarkerId) || null;
+
+  // Favorite toggle with Progressive Auth interception (ADR-004)
+  const handleFavoriteMeal = useCallback(
+    (meal: MealMarkerPayload) => {
+      if (!session) {
+        setPendingAction({ type: 'FAVORITE', mealId: meal.mealId });
+        router.push('/(modals)/auth');
+        return;
+      }
+
+      setSavedMealIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(meal.mealId)) {
+          next.delete(meal.mealId);
+        } else {
+          next.add(meal.mealId);
+        }
+        return next;
+      });
+    },
+    [session, setPendingAction, router]
   );
 
   // Recenter camera smoothly to user GPS coordinates or Manila pilot center
@@ -146,7 +190,7 @@ export default function MapScreen() {
       {/* Interactive PostGIS Map Canvas */}
       <MapView
         ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         provider={PROVIDER_DEFAULT}
         initialRegion={getInitialRegion()}
         customMapStyle={NEARBITES_MAP_STYLE}
@@ -215,7 +259,12 @@ export default function MapScreen() {
       </SafeAreaView>
 
       {/* Bottom Floating Recenter GPS Action Button */}
-      <View style={styles.bottomControls}>
+      <View
+        style={[
+          styles.bottomControls,
+          selectedMeal ? styles.bottomControlsWithPeek : null,
+        ]}
+      >
         <Pressable
           style={styles.recenterButton}
           onPress={handleRecenter}
@@ -231,6 +280,17 @@ export default function MapScreen() {
           />
         </Pressable>
       </View>
+
+      {/* Photo-First Meal Peek Bottom Sheet */}
+      {selectedMeal && (
+        <MealPeekSheet
+          marker={selectedMeal}
+          userLocation={location}
+          onClose={() => setSelectedMarkerId(null)}
+          onFavorite={handleFavoriteMeal}
+          isFavorited={savedMealIds.has(selectedMeal.mealId)}
+        />
+      )}
 
       {/* Empty State Card when Budget Filter yields 0 matches */}
       {!isMealsLoading && markers.length === 0 && (
@@ -320,6 +380,9 @@ const styles = StyleSheet.create({
     right: spacing.space4,
     bottom: Platform.OS === 'ios' ? 104 : 80,
     zIndex: 10,
+  },
+  bottomControlsWithPeek: {
+    bottom: Platform.OS === 'ios' ? 248 : 224,
   },
   recenterButton: {
     width: 48,
