@@ -1,10 +1,12 @@
 import { MealMarkerPayload } from '@/features/map/types';
+import { DAVAO_SEED_MEALS } from './seedMealsDavao';
+
+export { DAVAO_SEED_MEALS };
 
 /**
  * 25 Canonical Seed Meals across Manila U-Belt and Kapitolyo
- * Conforming strictly to /docs/database.md Section 5
  */
-export const SEED_MEALS: MealMarkerPayload[] = [
+export const MANILA_SEED_MEALS: MealMarkerPayload[] = [
   // 1. Ate Fe's Lutong Bahay (Ermita, Manila: 14.5995, 120.9842)
   {
     id: 'seed-meal-01',
@@ -349,4 +351,9 @@ export const SEED_MEALS: MealMarkerPayload[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&q=80',
     freshnessTier: 'stale',
   },
+];
+
+export const SEED_MEALS: MealMarkerPayload[] = [
+  ...DAVAO_SEED_MEALS,
+  ...MANILA_SEED_MEALS,
 ];

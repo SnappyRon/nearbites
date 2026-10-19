@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
-import { Marker } from 'react-native-maps';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Image } from 'react-native';
+import { Marker, MarkerPressEvent } from 'react-native-maps';
 import { MealMarkerPayload } from '@/features/map/types';
 import { Text } from '@/components/primitives/Text';
 import { colors } from '@/theme/colors';
@@ -31,15 +31,19 @@ const getCategoryGlyph = (category: string): string => {
 export const PriceMarker: React.FC<PriceMarkerProps> = ({
   marker,
   isSelected,
-  latitudeDelta,
   onSelect,
 }) => {
-  // Determine zoom mode based on latitudeDelta
-  // Low Zoom (< 13z): latitudeDelta > 0.08
-  // Mid Zoom (13z - 15z): 0.02 < latitudeDelta <= 0.08
-  // High Zoom (16z+): latitudeDelta <= 0.02
-  const isHighZoom = latitudeDelta <= 0.02;
-  const isLowZoom = latitudeDelta > 0.08;
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Keep tracksViewChanges active during initial render & state switches to prevent blank image snapshots on iOS
+  useEffect(() => {
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => {
+      setTracksViewChanges(false);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [isSelected, marker.thumbnailUrl, imageLoaded]);
 
   const glyph = getCategoryGlyph(marker.category);
 
@@ -49,150 +53,145 @@ export const PriceMarker: React.FC<PriceMarkerProps> = ({
         latitude: marker.latitude,
         longitude: marker.longitude,
       }}
-      onPress={() => onSelect(marker)}
-      tracksViewChanges={false}
+      onPress={(e: MarkerPressEvent) => {
+        e.stopPropagation();
+        onSelect(marker);
+      }}
+      anchor={{ x: 0.5, y: 1.0 }}
+      tracksViewChanges={tracksViewChanges || isSelected}
       zIndex={isSelected ? 999 : 1}
     >
-      <Pressable
-        onPress={() => onSelect(marker)}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        style={[
-          styles.container,
-          isSelected && styles.containerSelected,
-          isLowZoom && styles.containerLowZoom,
-        ]}
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel={`Meal: ${marker.title}, Price: ₱${marker.price}, at ${marker.restaurantName}`}
-        accessibilityState={{ selected: isSelected }}
-      >
-        <View
-          style={[
-            styles.pill,
-            isSelected && styles.pillSelected,
-            isLowZoom && styles.pillLowZoom,
-          ]}
-        >
-          {isLowZoom ? (
-            <Text variant="caption" color="surface" style={styles.lowZoomText}>
-              ● ₱{marker.price}
-            </Text>
-          ) : (
-            <View style={styles.pillContent}>
-              {isHighZoom && (
+      <View style={[styles.markerWrapper, isSelected && styles.markerWrapperSelected]}>
+        {/* Main Pin Teardrop Body */}
+        <View style={[styles.pinHead, isSelected && styles.pinHeadSelected]}>
+          {/* Restaurant/Food Photo Container */}
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: marker.thumbnailUrl }}
+              style={styles.image}
+              onLoad={() => setImageLoaded(true)}
+              resizeMode="cover"
+            />
+            {!imageLoaded && (
+              <View style={styles.placeholderContainer}>
                 <Text style={styles.glyphText}>{glyph}</Text>
-              )}
-              <Text
-                variant="priceBadge"
-                color={isSelected ? 'surface' : 'primary'}
-                style={[styles.priceText, isSelected && styles.priceTextSelected]}
-              >
-                ₱{marker.price}
-              </Text>
-            </View>
-          )}
+              </View>
+            )}
+          </View>
+
+          {/* Integrated Price Badge Pill */}
+          <View style={[styles.priceBadge, isSelected && styles.priceBadgeSelected]}>
+            <Text
+              style={[styles.priceText, isSelected && styles.priceTextSelected]}
+              numberOfLines={1}
+            >
+              ₱{Math.round(marker.price)}
+            </Text>
+          </View>
         </View>
 
-        {/* Marker Pointing Stem */}
-        <View
-          style={[
-            styles.stem,
-            isSelected && styles.stemSelected,
-            isLowZoom && styles.stemLowZoom,
-          ]}
-        />
-      </Pressable>
+        {/* Pin Point Needle pointing to ground coordinate */}
+        <View style={[styles.pinTail, isSelected && styles.pinTailSelected]} />
+      </View>
     </Marker>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  markerWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 44,
-    minHeight: 44,
+    width: 54,
+    paddingBottom: 2,
   },
-  containerSelected: {
+  markerWrapperSelected: {
     transform: [{ scale: 1.15 }],
   },
-  containerLowZoom: {
-    transform: [{ scale: 0.9 }],
-  },
-  pill: {
+  pinHead: {
     backgroundColor: colors.surface,
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    padding: 2,
+    alignItems: 'center',
     shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 4,
   },
-  pillSelected: {
-    backgroundColor: colors.primary,
+  pinHeadSelected: {
     borderColor: colors.accent,
     borderWidth: 2.5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
     shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.45,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 8,
   },
-  pillLowZoom: {
-    backgroundColor: colors.primary,
-    borderColor: colors.accent,
-    borderWidth: 1.5,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+  imageContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pillContent: {
-    flexDirection: 'row',
+  image: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  placeholderContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
   glyphText: {
-    fontSize: 12,
-    marginRight: 4,
+    fontSize: 16,
+  },
+  priceBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    marginTop: -8,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 32,
+  },
+  priceBadgeSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.surface,
   },
   priceText: {
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.surface,
   },
   priceTextSelected: {
     color: colors.surface,
   },
-  lowZoomText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  stem: {
+  pinTail: {
     width: 0,
     height: 0,
     backgroundColor: 'transparent',
     borderStyle: 'solid',
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderTopWidth: 5,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: colors.primary,
-    marginTop: -1,
-  },
-  stemSelected: {
-    borderTopColor: colors.accent,
     borderLeftWidth: 6,
     borderRightWidth: 6,
-    borderTopWidth: 6,
+    borderTopWidth: 7,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: colors.surface,
+    marginTop: -1,
   },
-  stemLowZoom: {
-    borderTopColor: colors.primary,
-    borderLeftWidth: 4,
-    borderRightWidth: 4,
-    borderTopWidth: 4,
+  pinTailSelected: {
+    borderTopColor: colors.accent,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 8,
   },
 });

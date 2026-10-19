@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { useDiscoveryStore, LocationCoords } from '@/store/useDiscoveryStore';
 
+export const DAVAO_PILOT_CENTER: LocationCoords = {
+  latitude: 7.0707,
+  longitude: 125.6087,
+};
+
 export const MANILA_PILOT_CENTER: LocationCoords = {
   latitude: 14.5995,
   longitude: 120.9842,
@@ -38,9 +43,9 @@ export const useLocation = (): UseLocationResult => {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
-        setErrorMsg('Location permission denied. Showing Manila University Belt pilot area.');
+        setErrorMsg('Location permission denied. Showing Davao City pilot area.');
         setHasLocationPermission(false);
-        setUserLocation(MANILA_PILOT_CENTER);
+        setUserLocation(DAVAO_PILOT_CENTER);
         setIsFallback(true);
         setIsLoading(false);
         return;
@@ -61,8 +66,8 @@ export const useLocation = (): UseLocationResult => {
       setUserLocation(coords);
     } catch (error) {
       console.warn('[NearBites useLocation] Error acquiring GPS, defaulting to pilot coordinates:', error);
-      setErrorMsg('Unable to retrieve current location. Using Manila pilot area.');
-      setUserLocation(MANILA_PILOT_CENTER);
+      setErrorMsg('Unable to retrieve current location. Using Davao City pilot area.');
+      setUserLocation(DAVAO_PILOT_CENTER);
       setIsFallback(true);
     } finally {
       setIsLoading(false);
@@ -73,14 +78,14 @@ export const useLocation = (): UseLocationResult => {
     requestLocation();
   }, [requestLocation]);
 
-  const activeCoords = userLocation || MANILA_PILOT_CENTER;
+  const activeCoords = userLocation || DAVAO_PILOT_CENTER;
 
   const getInitialRegion = useCallback(() => {
     return {
       latitude: activeCoords.latitude,
       longitude: activeCoords.longitude,
-      latitudeDelta: 0.015, // Street walking zoom level (~15z-16z)
-      longitudeDelta: 0.015,
+      latitudeDelta: 0.05, // Regional discovery zoom level (~5.5km viewport)
+      longitudeDelta: 0.05,
     };
   }, [activeCoords]);
 

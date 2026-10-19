@@ -1,8 +1,8 @@
 import { IMapService } from '@/features/map/types';
-import { mockMapService } from './MockMapService';
+import { supabaseMapService } from './SupabaseMapService';
 
 /**
  * Canonical MapService instance conforming to ADR-001 abstraction
- * Currently backed by MockMapService; seamlessly swappable with live PostGIS service in Phase 7
+ * Backed by SupabaseMapService with live PostGIS queries and automatic graceful fallback to MockMapService
  */
-export const mapService: IMapService = mockMapService;
+export const mapService: IMapService = supabaseMapService;

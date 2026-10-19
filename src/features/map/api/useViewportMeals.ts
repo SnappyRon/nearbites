@@ -13,7 +13,7 @@ export const useViewportMeals = (
       if (!bounds) {
         return [];
       }
-      return mapService.fetchViewportMarkers(bounds, maxBudget, category);
+      return mapService.getViewportMeals(bounds, maxBudget, category);
     },
     enabled: Boolean(bounds && bounds.minLat !== 0),
     staleTime: 60 * 1000,

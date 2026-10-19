@@ -4,6 +4,8 @@ import { Text } from '@/components/primitives/Text';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
+import { Ionicons } from '@expo/vector-icons';
+
 export interface BudgetFilterBarProps {
   activeBudget: number;
   onSelectBudget: (budget: number) => void;
@@ -13,11 +15,11 @@ export interface BudgetFilterBarProps {
 interface BudgetOption {
   label: string;
   value: number;
-  isCustom?: boolean;
 }
 
 const BUDGET_OPTIONS: BudgetOption[] = [
   { label: 'All Meals', value: 0 },
+  { label: '≤ ₱50', value: 50 },
   { label: '≤ ₱99', value: 99 },
   { label: '≤ ₱150', value: 150 },
   { label: '≤ ₱250', value: 250 },
@@ -28,6 +30,10 @@ export const BudgetFilterBar: React.FC<BudgetFilterBarProps> = ({
   onSelectBudget,
   onOpenCustomModal,
 }) => {
+  const isPresetSelected = BUDGET_OPTIONS.some(
+    (opt) => opt.value === activeBudget || (opt.value === 0 && activeBudget >= 9999)
+  );
+
   return (
     <ScrollView
       horizontal
@@ -36,7 +42,9 @@ export const BudgetFilterBar: React.FC<BudgetFilterBarProps> = ({
       style={styles.container}
     >
       {BUDGET_OPTIONS.map((option) => {
-        const isSelected = activeBudget === option.value;
+        const isSelected =
+          activeBudget === option.value ||
+          (option.value === 0 && (activeBudget === 0 || activeBudget >= 9999));
 
         return (
           <Pressable
@@ -68,13 +76,27 @@ export const BudgetFilterBar: React.FC<BudgetFilterBarProps> = ({
         <Pressable
           onPress={onOpenCustomModal}
           hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-          style={[styles.chip, styles.chipUnselected, styles.customChip]}
+          style={[
+            styles.chip,
+            !isPresetSelected ? styles.chipSelected : styles.chipUnselected,
+            styles.customChip,
+          ]}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Open custom budget slider"
+          accessibilityLabel="Open custom budget settings"
         >
-          <Text variant="caption" color="primary" style={styles.chipText}>
-            ⚙ Custom...
+          <Ionicons
+            name="options-outline"
+            size={14}
+            color={!isPresetSelected ? colors.surface : colors.primary}
+            style={styles.customIcon}
+          />
+          <Text
+            variant="caption"
+            color={!isPresetSelected ? 'surface' : 'primary'}
+            style={[styles.chipText, !isPresetSelected && styles.chipTextSelected]}
+          >
+            {!isPresetSelected && activeBudget > 0 ? `≤ ₱${activeBudget}` : 'Custom'}
           </Text>
         </Pressable>
       )}
@@ -116,6 +138,10 @@ const styles = StyleSheet.create({
   },
   customChip: {
     borderStyle: 'dashed',
+    flexDirection: 'row',
+  },
+  customIcon: {
+    marginRight: 4,
   },
   chipText: {
     fontWeight: '600',
